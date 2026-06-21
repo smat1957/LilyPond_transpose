@@ -1,15 +1,15 @@
-#まず Token 定義
+# まず Token 定義
 from tokens import *
 
-#音名定義
+# 音名定義
 NOTE_NAMES = [
-    "beses","ases","ees","eis",
-    "ces","fes",
-    "cis","des","dis",
+    "beses", "ases", "ees", "eis",
+    "ces", "fes",
+    "cis", "des", "dis",
     "es",
-    "fis","ges","gis",
-    "as","ais","bes",
-    "c","d","e","f","g","a","b"
+    "fis", "ges", "gis",
+    "as", "ais", "bes",
+    "c", "d", "e", "f", "g", "a", "b"
 ]
 
 NOTE_NAMES.sort(
@@ -17,7 +17,7 @@ NOTE_NAMES.sort(
     reverse=True
 )
 
-#音符読取
+# 音符読取
 import re
 
 NOTE_RE = re.compile(
@@ -29,60 +29,60 @@ NOTE_RE = re.compile(
     r'(?![A-Za-z])'
 )
 
-#Tokenizer
+
+# Tokenizer
 class Tokenizer:
 
-    def __init__(self,text):
+    def __init__(self, text):
 
-        self.text=text
-        self.pos=0
-        self.len=len(text)
+        self.text = text
+        self.pos = 0
+        self.len = len(text)
 
-    def peek(self,n=0):
+    def peek(self, n=0):
 
-        p=self.pos+n
+        p = self.pos + n
 
-        if p>=self.len:
+        if p >= self.len:
             return ""
 
         return self.text[p]
 
     def advance(self):
 
-        ch=self.peek()
+        ch = self.peek()
 
-        self.pos+=1
+        self.pos += 1
 
         return ch
 
-#コメント
+    # コメント
     def read_comment(self):
 
-        buf=""
+        buf = ""
 
-        while self.peek() not in ("","\n"):
-
-            buf+=self.advance()
+        while self.peek() not in ("", "\n"):
+            buf += self.advance()
 
         return CommentToken(buf)
 
-#コマンド
+    # コマンド
     def read_command(self):
 
-        buf=self.advance()
+        buf = self.advance()
 
         while (
-            self.peek().isalnum()
-            or self.peek()=="_"
+                self.peek().isalnum()
+                or self.peek() == "_"
         ):
-            buf+=self.advance()
+            buf += self.advance()
 
         return CommandToken(buf)
 
-#音符
+    # 音符
     def read_note(self):
 
-        m=NOTE_RE.match(
+        m = NOTE_RE.match(
             self.text,
             self.pos
         )
@@ -90,20 +90,20 @@ class Tokenizer:
         if not m:
             return None
 
-        self.pos=m.end()
+        self.pos = m.end()
 
-        note=m.group(1)
+        note = m.group(1)
 
-        octave=m.group(2)
+        octave = m.group(2)
 
-        suffix=""
+        suffix = ""
 
         while (
-            self.peek()
-            and self.peek() not in
-            " \t\r\n<>"
+                self.peek()
+                and self.peek() not in
+                " \t\r\n<>"
         ):
-            suffix+=self.advance()
+            suffix += self.advance()
 
         return NoteToken(
             note,
@@ -111,22 +111,20 @@ class Tokenizer:
             suffix
         )
 
-#和音
+    # 和音
     def read_chord(self):
 
-        self.advance()      # '<'
+        self.advance()  # '<'
 
-        items=[]
+        items = []
 
         while True:
 
-            if self.peek()==">":
-
+            if self.peek() == ">":
                 self.advance()
                 break
 
             if self.peek().isspace():
-
                 items.append(
                     RawToken(
                         self.advance()
@@ -134,10 +132,9 @@ class Tokenizer:
                 )
                 continue
 
-            n=self.read_note()
+            n = self.read_note()
 
             if n:
-
                 items.append(n)
                 continue
 
@@ -147,32 +144,32 @@ class Tokenizer:
                 )
             )
 
-        suffix=""
+        suffix = ""
 
         while (
-            self.peek()
-            and self.peek() not in
-            " \t\r\n"
+                self.peek()
+                and self.peek() not in
+                " \t\r\n"
         ):
-            suffix+=self.advance()
+            suffix += self.advance()
 
         return ChordToken(
             items,
             suffix
         )
 
-#tokenize
+    # tokenize
     def tokenize(self):
 
-        result=[]
+        result = []
 
-        while self.pos<self.len:
+        while self.pos < self.len:
 
-            ch=self.peek()
+            ch = self.peek()
 
             if self.text.startswith(
-                "\\relative",
-                self.pos
+                    "\\relative",
+                    self.pos
             ):
                 result.append(
                     self.read_relative()
@@ -198,8 +195,7 @@ class Tokenizer:
                 )
                 continue
 
-            if ch=="%":
-
+            if ch == "%":
                 result.append(
                     self.read_comment()
                 )
@@ -210,11 +206,11 @@ class Tokenizer:
                 result.append(self.read_key())
                 continue
 
-            if ch=="\\":
+            if ch == "\\":
 
                 if self.text.startswith(
-                    "\\relative",
-                    self.pos
+                        "\\relative",
+                        self.pos
                 ):
                     result.append(
                         self.read_relative()
@@ -226,20 +222,18 @@ class Tokenizer:
                 )
                 continue
 
-            if ch=="<":
+            if ch == "<":
 
-                if self.peek(1)!="<":
-
+                if self.peek(1) != "<":
                     result.append(
                         self.read_chord()
                     )
 
                     continue
 
-            n=self.read_note()
+            n = self.read_note()
 
             if n:
-
                 result.append(n)
 
                 continue
@@ -251,7 +245,8 @@ class Tokenizer:
             )
 
         return result
-#
+
+    #
     def read_key(self):
 
         self.pos += len("\\key")
@@ -276,7 +271,7 @@ class Tokenizer:
 
         return KeyToken(key, mode)
 
-#
+    #
     def read_pitch_literal(self):
 
         m = NOTE_RE.match(
@@ -294,7 +289,7 @@ class Tokenizer:
             m.group(2)
         )
 
-#
+    #
     def read_brace_block(self):
 
         depth = 1
@@ -312,11 +307,11 @@ class Tokenizer:
                 depth -= 1
 
                 if depth == 0:
-                    return self.text[start:self.pos-1]
+                    return self.text[start:self.pos - 1]
 
         raise SyntaxError("missing }")
 
-#
+    #
     def read_relative(self):
 
         self.pos += len("\\relative")
@@ -354,10 +349,10 @@ class Tokenizer:
             child_tokens
         )
 
-#
+    #
     def read_parallel(self):
 
-        self.pos += 2    # skip <<
+        self.pos += 2  # skip <<
 
         voices = []
 
@@ -388,8 +383,8 @@ class Tokenizer:
                 prefix = ""
 
                 while (
-                    self.pos < self.len
-                    and self.peek() != "{"
+                        self.pos < self.len
+                        and self.peek() != "{"
                 ):
                     prefix += self.advance()
 
@@ -402,10 +397,10 @@ class Tokenizer:
                 body = self.read_brace_block()
 
                 voice_tokens = (
-                    Tokenizer(prefix).tokenize()
-                    + [SymbolToken("{")]
-                    + Tokenizer(body).tokenize()
-                    + [SymbolToken("}")]
+                        Tokenizer(prefix).tokenize()
+                        + [SymbolToken("{")]
+                        + Tokenizer(body).tokenize()
+                        + [SymbolToken("}")]
                 )
 
                 voices.append(voice_tokens)
