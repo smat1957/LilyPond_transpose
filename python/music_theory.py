@@ -1,6 +1,27 @@
 # music_theory.py
-
+#
+# 音名と半音値の相互変換を担当する。
+#
+# 主な責務:
+#
+#     音名 → 半音値
+#     半音値 → 音名
+#     移調後の綴り決定
+#     シャープ・フラット処理
+#
+# MIDIやLilyPondの相対音高は扱わず、
+# 純粋な音楽理論部分のみを担当する。
 # 音高テーブル
+# 音名 → 半音値変換テーブル
+#
+# 例:
+#
+#     c    -> 0
+#     fis  -> 6
+#     bes  -> 10
+#     bis  -> 0
+#
+# ダブルシャープ・ダブルフラットも対応。
 NOTE_TO_SEMITONE = {
     "ces": 11,
     "c": 0,
@@ -28,7 +49,7 @@ NOTE_TO_SEMITONE = {
     "bis": 0,
 }
 NOTE_TO_SEMITONE.update({
-    "bis": 0,
+    # "bis": 0,
     "cisis": 2,
     "disis": 5,
     "eisis": 6,
@@ -44,7 +65,9 @@ NOTE_TO_SEMITONE.update({
     "aseses": 6,
     "beses": 8,
 })
-
+# 音名文字(c,d,e...)のインデックス
+#
+# 文字移調量(letter_shift)計算で使用する。
 LETTER_INDEX = {
     "c": 0,
     "d": 1,
@@ -54,7 +77,12 @@ LETTER_INDEX = {
     "a": 5,
     "b": 6,
 }
-
+# 半音値から代表的なシャープ系表記へ変換する。
+#
+# 例:
+#
+#     3 -> dis
+#     8 -> gis
 COMMON_PC_TO_NOTE = {
     0: "c",
     1: "cis",
@@ -69,7 +97,12 @@ COMMON_PC_TO_NOTE = {
     10: "ais",
     11: "b",
 }
-
+# 半音値から代表的なフラット系表記へ変換する。
+#
+# 例:
+#
+#     3 -> es
+#     10 -> bes
 SEMITONE_TO_NOTE = {
     0: "c",
     1: "cis",
@@ -84,7 +117,9 @@ SEMITONE_TO_NOTE = {
     10: "bes",
     11: "b",
 }
-
+# 自然音(c,d,e,f,g,a,b)の半音値。
+#
+# 臨時記号(accidental)計算の基準として使用する。
 LETTER_TO_NATURAL_PC = {
     "c": 0,
     "d": 2,
@@ -94,7 +129,9 @@ LETTER_TO_NATURAL_PC = {
     "a": 9,
     "b": 11,
 }
-
+# 音名の並び順。
+#
+# 文字移調(letter_shift)の計算で使用する。
 LETTERS = ["c", "d", "e", "f", "g", "a", "b"]
 
 
@@ -103,6 +140,37 @@ def transpose_note_name_by_interval(
         semitone_shift,
         letter_shift
 ):
+    """
+    音名を移調する。
+
+    入力:
+
+        old_note
+            元の音名
+
+        semitone_shift
+            半音移動量
+
+        letter_shift
+            音名文字の移動量
+
+    例:
+
+        c -> a
+
+    の場合
+
+        semitone_shift = -3
+        letter_shift = 5
+
+    を使い、
+
+        c → a
+        d → b
+        e → cis
+
+    のような綴りを決定する。
+    """
     old_letter = old_note[0]
 
     new_letter = LETTERS[
@@ -134,6 +202,15 @@ def transpose_pitch(
         note,
         shift
 ):
+    """
+    音名を半音数だけ移調する。
+
+    綴りは考慮せず、
+    SEMITONE_TO_NOTE を用いて
+    単純変換する。
+
+    主に \\relative 外の処理で使用。
+    """
     pc = NOTE_TO_SEMITONE[note]
 
     return SEMITONE_TO_NOTE[
@@ -142,6 +219,17 @@ def transpose_pitch(
 
 
 def simplify_spelling(note):
+    """
+    音名を簡略表記へ変換する。
+
+    例:
+
+        disis -> f
+        beses -> gis
+
+    ダブルシャープ・ダブルフラットを
+    避けるために使用する。
+    """
     pc = NOTE_TO_SEMITONE[note]
 
     # ダブルシャープ・ダブルフラットを避ける
@@ -152,6 +240,18 @@ def simplify_spelling(note):
 
 
 def note_from_letter_acc(letter, acc):
+    """
+    音名文字と臨時記号数から
+    LilyPond音名を生成する。
+
+    例:
+
+        ("c", 0)  -> c
+        ("c", 1)  -> cis
+        ("c", 2)  -> cisis
+        ("b",-1)  -> bes
+        ("a",-2)  -> ases
+    """
     if acc == 0:
         return letter
 
@@ -185,6 +285,21 @@ def note_from_letter_acc(letter, acc):
 
 
 def split_note_name(note):
+    """
+    LilyPond音名を
+
+        文字部分
+        臨時記号数
+
+    に分解する。
+
+    例:
+
+        fis   -> ("f", 1)
+        bes   -> ("b",-1)
+        ases  -> ("a",-2)
+        c     -> ("c", 0)
+    """
     letter = note[0]
     rest = note[1:]
 
@@ -236,6 +351,20 @@ def split_note_name(note):
 
 
 def note_base_midi(note):
+    """
+    音名の基準MIDI値を返す。
+
+    c を MIDI 60 として計算する。
+
+    例:
+
+        c    -> 60
+        d    -> 62
+        fis  -> 66
+        bes  -> 70
+
+    オクターブは含まない。
+    """
     letter, acc = split_note_name(note)
 
     return (

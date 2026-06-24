@@ -7,6 +7,17 @@ from pitch import *
 
 
 def letter_shift_between(src, dst):
+    """
+    音名の文字移動量を求める。
+
+    例:
+        c -> a  : 5
+        c -> d  : 1
+        g -> d' : 4
+
+    半音数ではなく、
+    c,d,e,f,g,a,b の文字位置の差を返す。
+    """
     src_note, _ = split_pitch(src)
     dst_note, _ = split_pitch(dst)
 
@@ -20,7 +31,19 @@ def letter_shift_between(src, dst):
 
 
 class PitchResolver:
+    """
+    \\relative ブロック内の音高解決を担当する。
 
+    LilyPond の相対音高規則を解釈し、
+
+        元の音高
+            ↓
+        移調後の絶対音高
+            ↓
+        LilyPond相対表記
+
+    に変換する。
+    """
     def __init__(self, anchor, letter_shift):
         self.prev_old_pos = parse_absolute_pitch_pos(anchor)
         self.prev_new_pos = None
@@ -28,7 +51,13 @@ class PitchResolver:
         self.letter_shift = letter_shift
 
     def transpose_note(self, note_token, shift):
+        """
+        単音(NoteToken)を移調する。
 
+        相対表記から元の絶対音高を求め、
+        指定半音数だけ移調し、
+        LilyPondの相対表記へ戻す。
+        """
         old_pos = resolve_relative_pitch(
             note_token,
             self.prev_old_pos
@@ -55,7 +84,13 @@ class PitchResolver:
         self.prev_new_pos = new_pos
 
     def transpose_chord(self, chord, shift):
+        """
+        和音(ChordToken)を移調する。
 
+        和音内の各音を順番に処理し、
+        LilyPondの相対表記を維持したまま
+        移調結果へ書き換える。
+        """
         first_old_pos = None
         first_new_pos = None
 
@@ -102,6 +137,13 @@ class PitchResolver:
 
 
 def transpose_relative_block(block, shift, letter_shift):
+    """
+    RelativeBlock 全体を移調する。
+
+    anchor を移調し、
+    新しい PitchResolver を作成して
+    ブロック内部を再帰的に処理する。
+    """
     old_anchor = block.anchor
 
     resolver = PitchResolver(
@@ -126,6 +168,12 @@ def transpose_relative_block(block, shift, letter_shift):
 
 
 def resolve_relative_pitch(note_token, prev_pos):
+    """
+    NoteToken を絶対音高へ展開する。
+
+    LilyPond の \\relative 規則に従い、
+    直前音(prev_pos)から最も近い音域を選ぶ。
+    """
     note = note_token.note
 
     octave = lilypond_inferred_octave(
@@ -142,6 +190,12 @@ def resolve_relative_pitch(note_token, prev_pos):
 
 
 def lilypond_inferred_octave(prev_pos, note):
+    """
+    LilyPond の相対音高規則を実装する。
+
+    prev_pos に最も近い音域の note を選び、
+    推定オクターブ番号を返す。
+    """
     prev_step = (
             prev_pos.octave * 7
             + LETTER_INDEX[prev_pos.letter]
@@ -179,6 +233,18 @@ def midi_to_lilypond_relative_with_note(
         midi,
         note
 ):
+    """
+    絶対音高(MIDI)を
+    LilyPond相対表記へ変換する。
+
+    戻り値:
+        ("''", PitchPos(...))
+
+    のような
+        オクターブ記号
+        新しいPitchPos
+    の組を返す。
+    """
     abs_octave = (
                          midi
                          - note_base_midi(note)
@@ -202,6 +268,22 @@ def midi_to_lilypond_relative_with_note(
 
 
 def walk_tokens(tokens, resolver, shift, letter_shift):
+    # << ... >> を検出したら
+    # resolver をコピーして独立に処理する
+    """
+    Token列を再帰的に走査する。
+
+    処理対象:
+
+        RelativeBlock
+        NoteToken
+        ChordToken
+        KeyToken
+        ParallelBlock
+        << >> ブロック
+
+    を見つけると適切な移調処理を行う。
+    """
     i = 0
 
     while i < len(tokens):
@@ -327,6 +409,11 @@ def walk_tokens(tokens, resolver, shift, letter_shift):
 
 
 def transpose_tokens(tokens, shift, letter_shift):
+    """
+    Token列全体を移調する。
+
+    移調処理のエントリポイント。
+    """
     walk_tokens(
         tokens,
         None,
