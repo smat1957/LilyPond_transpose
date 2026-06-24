@@ -73,20 +73,6 @@ def make_pos(note, octave):
         midi=midi,
     )
 
-'''
-def make_pos(note, octave):
-    midi = (
-            note_base_midi(note)
-            + octave * 12
-    )
-
-    return {
-        "note": note,
-        "letter": note_letter(note),
-        "octave": octave,
-        "midi": midi,
-    }
-'''
 
 def note_letter(note):
     return note[0]
