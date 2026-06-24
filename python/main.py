@@ -1,18 +1,27 @@
 '''
 main.py
-    プログラム全体の流れ
-tokenizer.py
-    文字列 → Token
+    エントリポイント
+
 tokens.py
     Token定義
+
+tokenizer.py
+    文字列 → Token
+
 music_theory.py
-    音楽理論
+    音名・半音理論
+
 pitch.py
-    PitchPos と MIDI
+    PitchPos・MIDI変換
+
+relative.py
+    Relative解決
+
 transpose.py
-    移調処理
+    Token走査
+
 writer.py
-    Token → 文字列
+    Token → LilyPond
 '''
 # main.py
 #
