@@ -34,10 +34,10 @@ class PitchResolver:
             self.prev_old_pos
         )
 
-        new_midi = old_pos["midi"] + shift
+        new_midi = old_pos.midi + shift
 
         new_note = transpose_note_name_by_interval(
-            old_pos["note"],
+            old_pos.note,
             shift,
             self.letter_shift
         )
@@ -72,10 +72,10 @@ class PitchResolver:
                 chord_old_prev
             )
 
-            new_midi = old_pos["midi"] + shift
+            new_midi = old_pos.midi + shift
 
             new_note = transpose_note_name_by_interval(
-                old_pos["note"],
+                old_pos.note,
                 shift,
                 self.letter_shift
             )
@@ -203,8 +203,8 @@ def parse_pitch(pitch):
 
 def lilypond_inferred_octave(prev_pos, note):
     prev_step = (
-            prev_pos["octave"] * 7
-            + LETTER_INDEX[prev_pos["letter"]]
+            prev_pos.octave * 7
+            + LETTER_INDEX[prev_pos.letter]
     )
 
     letter = note_letter(note)
@@ -213,8 +213,8 @@ def lilypond_inferred_octave(prev_pos, note):
     candidates = []
 
     for octave in range(
-            prev_pos["octave"] - 4,
-            prev_pos["octave"] + 5
+            prev_pos.octave - 4,
+            prev_pos.octave + 5
     ):
         step = octave * 7 + letter_index
         diff = step - prev_step

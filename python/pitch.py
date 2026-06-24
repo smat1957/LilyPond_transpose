@@ -1,4 +1,14 @@
 # pitch.py
+from dataclasses import dataclass
+
+
+@dataclass
+class PitchPos:
+    note: str
+    octave: int
+    letter: str
+    midi: int
+
 
 from tokenizer import NOTE_NAMES
 from music_theory import (
@@ -49,7 +59,21 @@ def parse_absolute_pitch_pos(pitch):
 
     return make_pos(note, octave)
 
+def make_pos(note, octave):
 
+    midi = (
+        note_base_midi(note)
+        + octave * 12
+    )
+
+    return PitchPos(
+        note=note,
+        octave=octave,
+        letter=note_letter(note),
+        midi=midi,
+    )
+
+'''
 def make_pos(note, octave):
     midi = (
             note_base_midi(note)
@@ -62,7 +86,7 @@ def make_pos(note, octave):
         "octave": octave,
         "midi": midi,
     }
-
+'''
 
 def note_letter(note):
     return note[0]
