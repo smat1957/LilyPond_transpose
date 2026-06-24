@@ -26,9 +26,10 @@
   }
 
   guitarPreludeA =  {
+         \once \override Score.MetronomeMark.padding = #2.8
          \tempo \markup {
              \concat {
-             \italic "Drop D tuning     "
+             %\italic "Drop D tuning     "
              \note { 4 } #1
              " = ca. 72"
            }
