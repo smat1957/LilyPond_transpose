@@ -120,6 +120,7 @@ def walk_tokens(tokens, resolver, shift, letter_shift):
             inner = tokens[i + 1:j]
 
             if resolver:
+                # local_resolver = resolver.clone()
                 local_resolver = copy.deepcopy(
                     resolver
                 )
@@ -191,6 +192,7 @@ def walk_tokens(tokens, resolver, shift, letter_shift):
             for voice in t.voices:
 
                 if resolver:
+                    # local_resolver = resolver.clone()
                     local_resolver = copy.deepcopy(
                         resolver
                     )

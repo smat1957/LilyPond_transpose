@@ -1,4 +1,4 @@
-
+import copy
 from tokens import *
 from pitch import (
     parse_absolute_pitch_pos,
@@ -34,6 +34,15 @@ class PitchResolver:
         self.prev_new_pos = None
         self.current_key = "c"
         self.letter_shift = letter_shift
+
+    def clone(self):
+        """
+        Resolver の複製を作る。
+
+        << ... >> や ParallelBlock の各声部を
+        独立に処理するために使用する。
+        """
+        return copy.deepcopy(self)
 
     def transpose_note(self, note_token, shift):
         """
