@@ -11,7 +11,7 @@ from music_theory import (
     transpose_note_name_by_interval,
 )
 
-class PitchResolver:
+class RelativeResolver:
     """
     \\relative ブロック内の音高解決を担当する。
 
@@ -25,7 +25,7 @@ class PitchResolver:
 
     に変換する。
 
-    PitchResolver
+    RelativeResolver
         \relative 内の直前音を覚えながら
         NoteToken / ChordToken を移調する
     """

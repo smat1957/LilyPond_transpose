@@ -7,7 +7,7 @@ import copy
 from tokens import *
 from music_theory import *
 from pitch import *
-from relative import PitchResolver
+from relative import RelativeResolver
 
 
 def letter_shift_between(src, dst):
@@ -40,12 +40,12 @@ def transpose_relative_block(block, shift, letter_shift):
     RelativeBlock 全体を移調する。
 
     anchor を移調し、
-    新しい PitchResolver を作成して
+    新しい RelativeResolver を作成して
     ブロック内部を再帰的に処理する。
     """
     old_anchor = block.anchor
 
-    resolver = PitchResolver(
+    resolver = RelativeResolver(
         old_anchor,
         letter_shift
     )
