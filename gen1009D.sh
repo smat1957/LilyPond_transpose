@@ -4,3 +4,4 @@ cd ../lilyp
 lilypond BWV1009PreludeD.ly
 mv BWV1009PreludeD.pdf ../pdf/
 cd ../
+diff lilyp/guitar/old/guitar1009D.ly lilyp/guitar/guitar1009D.ly
