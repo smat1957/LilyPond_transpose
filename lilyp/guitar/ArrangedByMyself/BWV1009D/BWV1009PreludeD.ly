@@ -5,9 +5,11 @@
 }
 
 \header {
-  title = "Prelude (BWV1009)"
+  title = "Prelude from BWV1009"
   composer = "Johann Sebastian Bach"
   arranger = "arr. by Shusei Matoike"
+  %date = "2026年6月25日"
+  tagline = "The arranger's name should be mentioned in concert programs.(Arranged on 2026/06/25)"
 }
 
 \include "guitar1009D.ly"
@@ -37,6 +39,7 @@
           \celloPrelude
   }
   guitarPreludeD =  {
+         \once \override Score.MetronomeMark.padding = #2.8
          \tempo \markup {
              \concat {
              \italic "Drop D tuning     "
