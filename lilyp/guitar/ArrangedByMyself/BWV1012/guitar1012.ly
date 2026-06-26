@@ -2,6 +2,9 @@ celloPrelude = \relative c {
 
     \key d \major
     \time 12/8
+    % 始まりの文字を「(8va)」に変更
+    %\override Staff.OttavaBracket.text = #"(8va)"
+    \override Staff.OttavaBracket.text = \markup { "8va" \italic "ad lib." }
 %1
     \phrasingSlurDown
     <<{\voiceOne \phrasingSlurDown d8(\([ s\) d)] d(\([ s\) fis)] d(\([ s\) a')] d,(\([ s\) d')]}{\new Voice{\voiceTwo s d, s s d s s d s s d s}}>>\oneVoice
