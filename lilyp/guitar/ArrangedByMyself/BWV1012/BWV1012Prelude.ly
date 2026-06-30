@@ -48,7 +48,9 @@ bassClef =
   }
 
 \header {
-  title = "Prelude from BWV1012"
+  title = "Suite VI"
+  subtitle = "BWV1012"
+  piece = "Prelude"
   composer = "Johann Sebastian Bach"
   arranger = #(if isCello "based on Pablo Casals" "arr. by Shusei Matoike")
   %date = "2026年6月25日"

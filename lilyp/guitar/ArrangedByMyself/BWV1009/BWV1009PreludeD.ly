@@ -5,7 +5,9 @@
 }
 
 \header {
-  title = "Prelude from BWV1009"
+  title = "Suite III"
+  subtitle = "BWV1009"
+  piece = "Prelude"
   composer = "Johann Sebastian Bach"
   arranger = "arr. by Shusei Matoike"
   %date = "2026年6月25日"
