@@ -2,7 +2,11 @@
 
 LilyPond で書かれたバッハ無伴奏チェロ組曲の楽譜を、ギター用に移調・整形するための作業用リポジトリです。
 
-主に Python スクリプトで LilyPond ソースを移調し、その結果を LilyPond で PDF 化します。
+Pythonのコマンドライン版と、共通ライブラリ・macOS・iPad・iPhoneアプリを含む
+Swift版を並行して開発しています。移調後のLilyPondソースは、LilyPondでPDF化して
+結果を確認できます。
+
+Swift版の構成と利用方法は[Swift版README](swift/README.md)を参照してください。
 
 ## 概要
 
@@ -22,7 +26,8 @@ LilyPond で書かれたバッハ無伴奏チェロ組曲の楽譜を、ギタ�
 .
 ├── lilyp/        LilyPond ソース
 ├── pdf/          生成された PDF
-├── python/       移調用 Python スクリプト
+├── python/       移調用Pythonコマンドライン実装
+├── swift/        Swift共通ライブラリと各プラットフォーム向けアプリ
 ├── gen1007.sh    BWV1007 用生成スクリプト
 ├── gen1009A.sh   BWV1009 A-Dur 用生成スクリプト
 ├── gen1009D.sh   BWV1009 D-Dur 用生成スクリプト
@@ -34,6 +39,9 @@ LilyPond で書かれたバッハ無伴奏チェロ組曲の楽譜を、ギタ�
 
 * Python 3
 * LilyPond
+
+Swift版を開発・利用する場合は、対応するmacOSとXcodeも必要です。Swift Packageの
+対応プラットフォームはmacOS 14以降、iOS・iPadOS 17以降です。
 
 ## 基本的な使い方
 
@@ -76,6 +84,15 @@ python3 main.py es c
 
 標準入力から LilyPond ソースを読み込み、標準出力へ変換後の LilyPond ソースを書き出します。
 
+## Swift版
+
+`swift/`には、Python版の移調処理をSwiftへ移植した`LilyPondTransposeCore`と、
+Coreを利用するmacOS・iPad・iPhoneアプリがあります。LilyPondNoteからも、
+ローカルSwift Packageとして同じCoreを利用します。
+
+Swift版のビルド、アプリ操作、Package利用、テスト方法は
+[swift/README.md](swift/README.md)にまとめています。
+
 ## 対応している主な処理
 
 * LilyPond 音名の解析
@@ -89,7 +106,7 @@ python3 main.py es c
 
 ## 注意点
 
-このプログラムは、LilyPond のすべての構文に対応した完全なパーサではありません。
+Python版とSwift版は、LilyPondのすべての構文に対応した完全なパーサではありません。
 
 実用上必要な範囲で、バッハ無伴奏チェロ組曲の LilyPond ソースをギター用に移調することを目的にしています。そのため、複雑な LilyPond 構文では手修正が必要になる場合があります。
 
