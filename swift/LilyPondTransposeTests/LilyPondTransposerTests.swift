@@ -19,3 +19,21 @@ import Testing
 @Test func rejectsInvalidPitch() {
     #expect(throws: TransposeError.self) { try LilyPondTransposer().transpose("c", from: "h", to: "a") }
 }
+
+@Test func octaveMarksChangeTheRequestedDirection() throws {
+    let source = "\\relative c' { c4 d e }"
+    let upward = try LilyPondTransposer().transpose(source, from: "g", to: "d'")
+    let downward = try LilyPondTransposer().transpose(source, from: "g", to: "d")
+    let comma = try LilyPondTransposer().transpose(source, from: "c", to: "c,")
+
+    #expect(upward.hasPrefix("\\relative g' {"))
+    #expect(downward.hasPrefix("\\relative g {"))
+    #expect(comma.hasPrefix("\\relative c {"))
+}
+
+@Test func normalizesSmartApostrophesAndRejectsMixedMarks() throws {
+    #expect(try LilyPondTransposer.normalizePitch(" d’ ") == "d'")
+    #expect(throws: TransposeError.self) {
+        try LilyPondTransposer().transpose("c", from: "c", to: "d',")
+    }
+}

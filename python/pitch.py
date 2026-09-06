@@ -65,9 +65,21 @@ def split_pitch(pitch):
     for name in NOTE_NAMES:
 
         if pitch.startswith(name):
+            marks = pitch[len(name):]
+
+            # 音名の後ろにはLilyPondのオクターブ記号だけを許可する。
+            # startswith()だけでは bis を b、cisis を cis と誤読するため、
+            # 残りの文字列も必ず検査する。
+            if any(ch not in "'," for ch in marks):
+                continue
+
+            # 上下を同時に指定する表記は曖昧なので受け付けない。
+            if "'" in marks and "," in marks:
+                raise ValueError(f"mixed octave marks: {pitch}")
+
             return (
                 name,
-                pitch[len(name):]
+                marks
             )
 
     raise ValueError(

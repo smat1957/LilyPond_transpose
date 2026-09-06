@@ -18,13 +18,25 @@ public struct LilyPondTransposer: Sendable {
     public init() {}
 
     public func transpose(_ source: String, from sourcePitch: String, to destinationPitch: String) throws -> String {
-        let sourceValue = try MusicTheory.parsePitch(sourcePitch)
-        let destinationValue = try MusicTheory.parsePitch(destinationPitch)
+        let normalizedSourcePitch = try Self.normalizePitch(sourcePitch)
+        let normalizedDestinationPitch = try Self.normalizePitch(destinationPitch)
+        let sourceValue = try MusicTheory.parsePitch(normalizedSourcePitch)
+        let destinationValue = try MusicTheory.parsePitch(normalizedDestinationPitch)
         let shift = destinationValue - sourceValue
-        let letterShift = try MusicTheory.letterShift(from: sourcePitch, to: destinationPitch)
+        let letterShift = try MusicTheory.letterShift(from: normalizedSourcePitch, to: normalizedDestinationPitch)
         var tokenizer = Tokenizer(source)
         let tokens = try tokenizer.tokenize()
         let transposed = try TransposeEngine.transpose(tokens, shift: shift, letterShift: letterShift)
         return LilyPondWriter.write(transposed)
+    }
+
+    /// UIでスマート引用符に変換されたアポストロフィーをLilyPond表記へ戻し、検証する。
+    public static func normalizePitch(_ pitch: String) throws -> String {
+        let normalized = pitch
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "’", with: "'")
+            .replacingOccurrences(of: "‘", with: "'")
+        _ = try MusicTheory.splitPitch(normalized)
+        return normalized
     }
 }

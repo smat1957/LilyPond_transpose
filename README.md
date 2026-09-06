@@ -8,6 +8,10 @@ Swift版を並行して開発しています。移調後のLilyPondソースは�
 
 Swift版の構成と利用方法は[Swift版README](swift/README.md)を参照してください。
 
+Python版の詳しい使い方と、実際のソースを参照した処理解説は、
+[Python版 利用・実装解説](docs/out/LilyPond_transpose_Python.pdf)にまとめています。
+TeXソースは[docs/LilyPond_transpose_Python.tex](docs/LilyPond_transpose_Python.tex)です。
+
 ## 概要
 
 このリポジトリでは、チェロ用に入力した LilyPond ソースをもとに、ギターで演奏しやすい調へ移調した楽譜を作成します。

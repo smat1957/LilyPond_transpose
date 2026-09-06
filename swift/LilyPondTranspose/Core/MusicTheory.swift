@@ -23,6 +23,7 @@ enum MusicTheory {
         guard let name = noteNames.first(where: { pitch.hasPrefix($0) }) else { throw TransposeError.invalidPitch(pitch) }
         let marks = String(pitch.dropFirst(name.count))
         guard marks.allSatisfy({ $0 == "'" || $0 == "," }) else { throw TransposeError.invalidPitch(pitch) }
+        guard !(marks.contains("'") && marks.contains(",")) else { throw TransposeError.invalidPitch(pitch) }
         return (name, marks)
     }
 

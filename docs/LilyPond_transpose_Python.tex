@@ -1,0 +1,402 @@
+\documentclass[uplatex,a4paper,11pt]{jsbook}
+\usepackage[margin=22mm]{geometry}
+\usepackage[dvipdfmx]{hyperref,xcolor}
+\usepackage{pxjahyper}
+\usepackage{fvextra,enumitem,longtable,booktabs,amssymb}
+\usepackage{listings,jvlisting}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!65!black,
+  pdftitle={LilyPond transpose Python版 利用・実装解説}
+}
+\DefineVerbatimEnvironment{command}{Verbatim}{
+  fontsize=\small,frame=single,rulecolor=\color{gray!55},
+  breaklines=true,breakanywhere=true
+}
+\setlist{nosep}
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  numbers=left,
+  numberstyle=\tiny,
+  frame=single,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  tabsize=4,
+  captionpos=b
+}
+
+\title{LilyPond\_transpose\\Python版 利用・実装解説}
+\author{smat1957}
+\date{2026年9月6日}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本書は、LilyPondで記述された楽譜を指定音程だけ移調する
+\texttt{LilyPond\_transpose}のPython版を説明する。第I部ではコマンドラインからの
+使い方と実例を示し、第II部では実際のプログラムソースを参照しながら、字句解析、
+音楽理論計算、相対音高の解決、移調、LilyPond文字列への復元という処理を解説する。
+本プログラムは完全なLilyPondパーサーではなく、バッハ無伴奏チェロ組曲をギター用に
+移調・整形する実用範囲を主な対象としている。
+\end{abstract}
+
+\tableofcontents
+
+\part{使い方と使用例}
+
+\chapter{概要}
+
+\section{目的}
+
+Python版は、標準入力からLilyPondソースを読み、移調後のLilyPondソースを標準出力へ
+書き出すコマンドラインプログラムである。入力ファイルを直接上書きしないため、変換前の
+楽譜を残したまま別ファイルとして結果を生成できる。
+
+主な処理対象は次のとおりである。
+
+\begin{itemize}
+  \item LilyPond音名と臨時記号
+  \item \texttt{\textbackslash relative}ブロックとオクターブ記号
+  \item 単音と和音\texttt{<...>}
+  \item \texttt{\textbackslash key}による調指定
+  \item 複数声部を含む並列ブロック
+  \item コメント、音価、演奏記号など移調対象外の文字列の保持
+\end{itemize}
+
+\section{必要な環境}
+
+移調処理にはPython 3を使用する。結果を譜面として確認するにはLilyPondも必要である。
+リポジトリの代表的な構成は次のとおりである。
+
+\begin{command}
+LilyPond_transpose/
+|-- python/       Python移調プログラム
+|-- lilyp/        入力・出力LilyPondソース
+|-- pdf/          生成したPDF
+|-- swift/        Swift版
+`-- gen*.sh       曲別の生成スクリプト
+\end{command}
+
+\chapter{基本操作}
+
+\section{コマンド形式}
+
+\begin{command}
+cd python
+python3 main.py SRC DST < input.ly > output.ly
+\end{command}
+
+\texttt{SRC}は移調元の基準音高、\texttt{DST}は移調先の基準音高である。単なる調名ではなく、
+オクターブ指示も含む音高として解釈される。プログラムは
+
+\begin{equation}
+  \mathrm{shift}=\mathrm{pitch}(DST)-\mathrm{pitch}(SRC)
+\end{equation}
+
+によって半音移動量を求める。
+
+\section{音名と臨時記号}
+
+音名はLilyPond形式で指定する。代表例を表\ref{tab:pitch-name}に示す。
+
+\begin{longtable}{@{}lll@{}}
+\caption{代表的な音名}\label{tab:pitch-name}\\
+\toprule
+表記 & 意味 & 備考\\
+\midrule
+\endfirsthead
+\toprule
+表記 & 意味 & 備考\\
+\midrule
+\endhead
+\texttt{c}, \texttt{d}, \texttt{e} & 自然音 & C, D, E\\
+\texttt{cis}, \texttt{fis}, \texttt{gis} & シャープ & C\(\sharp\), F\(\sharp\), G\(\sharp\)\\
+\texttt{des}, \texttt{ges} & フラット & D\(\flat\), G\(\flat\)\\
+\texttt{es}, \texttt{as}, \texttt{bes} & フラット & E\(\flat\), A\(\flat\), B\(\flat\)\\
+\bottomrule
+\end{longtable}
+
+通常用いる長調の主音として、\texttt{ces}, \texttt{ges}, \texttt{des}, \texttt{as},
+\texttt{es}, \texttt{bes}, \texttt{f}, \texttt{c}, \texttt{g}, \texttt{d}, \texttt{a},
+\texttt{e}, \texttt{b}, \texttt{fis}, \texttt{cis}を指定できる。入力中の
+\texttt{\textbackslash major}または\texttt{\textbackslash minor}は維持されるため、
+同じ引数形式を長調と短調の両方に使用する。
+
+\section{オクターブ指示}
+
+ASCIIアポストロフィー\texttt{'}は1個につき1オクターブ上、カンマ\texttt{,}は1個につき
+1オクターブ下を表す。例えば次の二つは移調後の音名文字が同じでも方向が異なる。
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+指定 & 半音移動量 & 意味\\
+\midrule
+\texttt{g}から\texttt{d} & \(-5\) & 完全4度下\\
+\texttt{g}から\texttt{d'} & \(+7\) & 完全5度上\\
+\texttt{g}から\texttt{d,} & \(-17\) & 1オクターブと完全4度下\\
+\texttt{c}から\texttt{c'} & \(+12\) & 1オクターブ上\\
+\texttt{c}から\texttt{c,} & \(-12\) & 1オクターブ下\\
+\bottomrule
+\end{longtable}
+
+bashやzshからアポストロフィーを渡す場合は、引数全体をダブルクォートで囲む方法が
+分かりやすい。
+
+\begin{command}
+python3 main.py g "d'" < input.ly > output.ly
+\end{command}
+
+次のようにアポストロフィーだけをバックスラッシュでエスケープしても同じ結果になる。
+
+\begin{command}
+python3 main.py g d\' < input.ly > output.ly
+\end{command}
+
+バックスラッシュはシェルにアポストロフィーを解釈させないためのものであり、Pythonへ渡す
+音高文字列の一部ではない。アプリやHTTP APIなど、シェルを介さず引数を渡す場合は
+\texttt{d'}をそのまま使用する。アポストロフィーとカンマを混在させた\texttt{d',}は
+受け付けない。
+
+\chapter{使用例}
+
+\section{C-DurからA-Durへ移調する}
+
+\begin{command}
+cd python
+python3 main.py c a \
+  < ../lilyp/cello/cello1009.ly \
+  > ../lilyp/guitar/guitar1009A.ly
+\end{command}
+
+\texttt{c}から\texttt{a}は3半音下である。入力中の\texttt{\textbackslash key c
+\textbackslash major}は\texttt{\textbackslash key a \textbackslash major}へ変換され、
+音符と和音も同じ音程だけ移調される。
+
+\section{C-DurからD-Durへ移調する}
+
+\begin{command}
+cd python
+python3 main.py c d \
+  < ../lilyp/cello/cello1009.ly \
+  > ../lilyp/guitar/guitar1009D.ly
+\end{command}
+
+この指定は2半音上への移調である。
+
+\section{G-DurからD-Durへ完全5度上げる}
+
+\begin{command}
+cd python
+python3 main.py g "d'" \
+  < ../lilyp/cello/cello1007.ly \
+  > ../lilyp/guitar/guitar1007.ly
+\end{command}
+
+\texttt{d'}を指定することで、同じD-Durでも5半音下ではなく7半音上を選択する。
+
+\section{変換結果をLilyPondで確認する}
+
+移調後は必ずLilyPondでコンパイルし、構文、音高、調号、オクターブ、運指、譜面の読みやすさを
+確認する。
+
+\begin{command}
+cd ../lilyp
+lilypond BWV1009PreludeA.ly
+mv BWV1009PreludeA.pdf ../pdf/
+\end{command}
+
+曲別の\texttt{gen1007.sh}、\texttt{gen1009A.sh}などを使えば、移調、PDF生成、既存結果との
+比較をまとめて実行できる。
+
+\chapter{対応範囲と注意事項}
+
+本プログラムはLilyPondの全構文を扱う完全なパーサーではない。次の点に注意する。
+
+\begin{itemize}
+  \item 複雑なScheme式や独自マクロの内部は正しく解析できない場合がある。
+  \item 移調元引数と入力中の調号が一致するかは自動確認しない。
+  \item 移調後の綴りに通常範囲を超える臨時記号が必要な場合はエラーになることがある。
+  \item \texttt{\textbackslash relative}と多声部の組合せは実際の楽譜で確認する必要がある。
+  \item 変換結果を完成譜とせず、必ずLilyPondによるコンパイルと目視確認を行う。
+\end{itemize}
+
+\part{プログラムソースと処理内容}
+
+\chapter{全体構成}
+
+\section{処理の流れ}
+
+Python版は責務ごとに8ファイルへ分割されている。処理は次の順に進む。
+
+\begin{command}
+標準入力のLilyPond文字列
+        |
+        v
+Tokenizer: 構文要素をToken列へ分解
+        |
+        v
+Transpose: 音高と調号を移調
+        |
+        +-- RelativeResolver: 相対音高を絶対音高へ展開して再表記
+        |
+        v
+Writer: Token列をLilyPond文字列へ復元
+        |
+        v
+標準出力
+\end{command}
+
+\begin{longtable}{@{}p{36mm}p{105mm}@{}}
+\toprule
+ファイル & 主な責務\\
+\midrule
+\texttt{main.py} & 引数、標準入力、処理全体の制御\\
+\texttt{tokens.py} & Tokenデータ型の定義\\
+\texttt{tokenizer.py} & LilyPond文字列からToken列への変換\\
+\texttt{music\_theory.py} & 音名、半音値、異名同音、綴りの計算\\
+\texttt{pitch.py} & 音高文字列、オクターブ、MIDI値の相互変換\\
+\texttt{relative.py} & LilyPond相対音高の解決と再生成\\
+\texttt{transpose.py} & Token木の走査と移調処理の振り分け\\
+\texttt{writer.py} & Token列からLilyPond文字列への復元\\
+\bottomrule
+\end{longtable}
+
+\chapter{エントリーポイント}
+
+\section{main.pyの役割}
+
+\texttt{main.py}は二つの引数を検査し、\texttt{parse\_pitch()}で半音移動量を、
+\texttt{letter\_shift\_between()}で音名文字の移動量を求める。この二種類の移動量を分ける
+ことで、同じ半音値を持つ音でも、移調音程に沿った音名文字を選べる。
+
+標準入力全体を\texttt{Tokenizer}へ渡し、\texttt{transpose\_tokens()}でToken列を変更した後、
+各Tokenを\texttt{write\_token()}で標準出力へ書き出す。
+
+\lstinputlisting[caption={エントリーポイント main.py}]{../python/main.py}
+
+\chapter{Tokenによる中間表現}
+
+\section{tokens.pyの役割}
+
+文字列を直接置換すると、音名と変数名、コメント、コマンドなどを区別できない。そのため、
+プログラムはいったん入力をToken列へ変換する。\texttt{NoteToken}は音名、オクターブ記号、
+音価などの後続文字列を分離して保持する。\texttt{RelativeBlock}、\texttt{ChordToken}、
+\texttt{ParallelBlock}は子Tokenを持ち、LilyPond構文の入れ子を表現する。
+
+\lstinputlisting[caption={Token定義 tokens.py}]{../python/tokens.py}
+
+\chapter{字句解析}
+
+\section{tokenizer.pyの役割}
+
+\texttt{Tokenizer}は入力位置を進めながら、コメント、コマンド、音符、和音、調指定、
+\texttt{\textbackslash relative}、並列ブロックを読み取る。音名一覧は長い順に並べ、
+\texttt{beses}を\texttt{b}として途中まで誤認しないようにしている。
+
+音符は音名、\texttt{'}や\texttt{,}からなるオクターブ記号、空白までのsuffixへ分ける。
+suffixを保持することで、音価、タイ、スラー、装飾などを移調後も書き戻せる。
+
+\texttt{read\_relative()}は外側の波括弧に対応する範囲を切り出し、その内部を新しい
+\texttt{Tokenizer}で再帰的に解析する。同様に和音や複数声部も子Token列として保持する。
+
+\lstinputlisting[caption={字句解析 tokenizer.py}]{../python/tokenizer.py}
+
+\chapter{音名と半音の理論計算}
+
+\section{music\_theory.pyの役割}
+
+\texttt{NOTE\_TO\_SEMITONE}は音名を0から11のピッチクラスへ変換する。
+\texttt{transpose\_note\_name\_by\_interval()}は、半音移動量だけでなく音名文字の移動量も
+受け取り、新しい文字と臨時記号を別々に決める。
+
+例えばCからAへの移調では半音移動量は\(-3\)、文字移動量は5である。したがってCはA、
+DはB、EはC\(\sharp\)というように、音程の文字関係を保った綴りが得られる。生成結果が
+ダブルシャープまたはダブルフラットになる場合は、実用性を優先して代表的な綴りへ簡略化する。
+
+\lstinputlisting[caption={音楽理論計算 music\_theory.py}]{../python/music_theory.py}
+
+\chapter{絶対音高とオクターブ}
+
+\section{pitch.pyの役割}
+
+\texttt{split\_pitch()}は\texttt{fis,}を音名\texttt{fis}とオクターブ記号\texttt{,}へ分ける。
+音名の後ろには\texttt{'}または\texttt{,}だけを許可し、上下記号の混在を拒否する。
+\texttt{parse\_pitch()}はCをMIDI値60の基準とし、アポストロフィーの個数からカンマの個数を
+引いた値に12を掛けてオクターブ差を加える。
+
+\texttt{PitchPos}は音名、オクターブ、音名文字、MIDI値をまとめて保持する。
+\texttt{midi\_to\_absolute\_lily()}は計算後のMIDI値を絶対LilyPond表記へ戻し、
+\texttt{\textbackslash relative}の新しい基準音生成に使用される。
+
+\lstinputlisting[caption={音高変換 pitch.py}]{../python/pitch.py}
+
+\chapter{相対音高の解決}
+
+\section{relative.pyの役割}
+
+LilyPondの\texttt{\textbackslash relative}では、各音符の実際のオクターブが直前音との関係で
+決まる。\texttt{RelativeResolver}は移調前と移調後の直前音をそれぞれ保持する。
+
+単音を処理するときは、まず\texttt{resolve\_relative\_pitch()}で元の絶対音高を求め、半音移動量を
+加え、移調後の直前音から必要な\texttt{'}または\texttt{,}を再計算する。これにより、音名だけを
+置換する場合に起こる意図しないオクターブ移動を避ける。
+
+和音では構成音を順に解決する一方、和音の次の単音へ引き継ぐ基準には和音の第1音を使う。
+複数声部ではResolverを複製し、各声部が別の直前音状態を持つようにする。
+
+\lstinputlisting[caption={相対音高処理 relative.py}]{../python/relative.py}
+
+\chapter{Token列の移調}
+
+\section{transpose.pyの役割}
+
+\texttt{walk\_tokens()}はToken列を再帰的に走査し、種類に応じて処理を振り分ける。
+\texttt{RelativeBlock}では専用Resolverを作り、通常の単音・和音では現在Resolverがあるか
+どうかによって相対表記用または単純移調用の処理を選ぶ。
+
+\texttt{KeyToken}はモードを維持したまま主音を移調する。並列ブロックではResolverを複製し、
+一つの声部の終端音が別の声部の開始音へ影響しないようにする。
+
+\lstinputlisting[caption={Token走査と移調 transpose.py}]{../python/transpose.py}
+
+\chapter{LilyPond文字列への復元}
+
+\section{writer.pyの役割}
+
+\texttt{write\_token()}はTokenの種類ごとにLilyPond表記を組み立てる。
+\texttt{RawToken}、\texttt{CommentToken}、\texttt{CommandToken}は内容を保持し、
+\texttt{NoteToken}は音名、再計算済みオクターブ記号、suffixを連結する。入れ子を持つTokenは
+子Tokenを再帰的に文字列化する。
+
+TokenizerとWriterを対にすることで、移調対象以外の情報を可能な限り保存したまま、必要な
+音高部分だけを書き換える。
+
+\lstinputlisting[caption={LilyPond出力 writer.py}]{../python/writer.py}
+
+\chapter{保守と検証}
+
+\section{変更時に確認する事項}
+
+音名や対応構文を追加するときは、一つのテーブルだけでなく、Tokenizer、音楽理論テーブル、
+音高変換、Writerの整合性を確認する。少なくとも次の組合せを検証する。
+
+\begin{itemize}
+  \item 上方向、下方向、1オクターブをまたぐ移調
+  \item シャープ系、フラット系、異名同音
+  \item 単音、和音、調号
+  \item \texttt{\textbackslash relative}内の上行・下行・明示的オクターブ指示
+  \item 並列声部
+  \item コメント、音価、スラー、タイなどの保持
+  \item 不正な音名および\texttt{'}と\texttt{,}の混在の拒否
+\end{itemize}
+
+最終検証は文字列比較だけで終えず、生成したソースをLilyPondでコンパイルし、PDF上の音高と
+譜面も確認する。
+
+\end{document}
