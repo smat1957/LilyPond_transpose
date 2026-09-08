@@ -29,26 +29,39 @@
   tabsize=4,
   captionpos=b
 }
+\lstdefinelanguage{Swift}{
+  morekeywords={associatedtype,class,deinit,enum,extension,fileprivate,func,import,
+    init,inout,internal,let,open,operator,private,protocol,public,rethrows,
+    static,struct,subscript,typealias,var,break,case,continue,default,defer,
+    do,else,fallthrough,for,guard,if,in,repeat,return,switch,where,while,as,
+    catch,false,is,nil,super,self,Self,throw,throws,true,try},
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]"
+}
 
-\title{LilyPond\_transpose\\Python版 利用・実装解説}
+\title{LilyPond\_transpose\\Python版・Swift版 利用／実装解説}
 \author{smat1957}
-\date{2026年9月6日}
+\date{2026年9月8日}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
 本書は、LilyPondで記述された楽譜を指定音程だけ移調する
-\texttt{LilyPond\_transpose}のPython版を説明する。第I部ではコマンドラインからの
-使い方と実例を示し、第II部では実際のプログラムソースを参照しながら、字句解析、
-音楽理論計算、相対音高の解決、移調、LilyPond文字列への復元という処理を解説する。
+\texttt{LilyPond\_transpose}のPython版とSwift版を説明する。第I部ではPython版の
+コマンドラインからの使い方と実装を、第II部ではSwift版のライブラリ、Apple各端末用
+アプリ、および共通変換処理を、実際のプログラムソースを参照しながら解説する。
+両実装について、字句解析、音楽理論計算、相対音高の解決、移調、LilyPond文字列への
+復元という処理の対応関係も分かる構成とした。
 本プログラムは完全なLilyPondパーサーではなく、バッハ無伴奏チェロ組曲をギター用に
 移調・整形する実用範囲を主な対象としている。
 \end{abstract}
 
 \tableofcontents
 
-\part{使い方と使用例}
+\part{Python版}
 
 \chapter{概要}
 
@@ -226,7 +239,15 @@ mv BWV1009PreludeA.pdf ../pdf/
   \item 変換結果を完成譜とせず、必ずLilyPondによるコンパイルと目視確認を行う。
 \end{itemize}
 
-\part{プログラムソースと処理内容}
+\chapter{プログラムソースと処理内容}
+
+\section{ソースコメントを手引きとして読む}
+
+Python版のソースには、単なる処理内容だけでなく、LilyPond固有の相対音高規則、
+和音後の基準音、異名同音の選択、構文をそのまま保存する理由などがコメントとして
+丁寧に記録されている。このコメントは実装の補足ではなく、設計判断と注意点を伝える
+重要な資料である。本章以降ではコード全体を掲載し、本文で処理の流れを俯瞰しながら、
+細部についてはソースコメントと照合できるようにしている。
 
 \chapter{全体構成}
 
@@ -398,5 +419,175 @@ TokenizerとWriterを対にすることで、移調対象以外の情報を可�
 
 最終検証は文字列比較だけで終えず、生成したソースをLilyPondでコンパイルし、PDF上の音高と
 譜面も確認する。
+
+\part{Swift版}
+
+\chapter{Swift版の目的と使い方}
+
+\section{Python版との関係}
+
+Swift版は、Python版と同じ移調処理をAppleプラットフォームから利用できるようにした実装で
+ある。変換本体はSwift Packageの\texttt{LilyPondTransposeCore}へ集約し、macOS、iPad、
+iPhoneの各SwiftUIアプリはこの共通ライブラリを呼び出す。これにより、画面構成やファイル
+選択の方法が端末ごとに異なっても、音楽理論とLilyPond変換の処理は一か所で保守できる。
+
+\section{動作環境とビルド}
+
+\texttt{Package.swift}はSwift tools 6.0、macOS 14以降、iOS・iPadOS 17以降を指定する。
+共通ライブラリとテストは次のコマンドでビルド、実行できる。
+
+\begin{command}
+cd swift
+swift test
+\end{command}
+
+アプリは\texttt{LilyPondTranspose.xcodeproj}をXcodeで開き、macOS、iPad、iPhoneの
+いずれかのSchemeと実行先を選ぶ。画面では移調元と移調先の音高を入力し、LilyPondソースを
+読み込むか貼り付けて「変換」を実行する。macOSとiPadでは変換前後を横に並べ、画面幅の
+限られるiPhoneではタブで切り替えて表示する。
+
+\section{ライブラリからの利用}
+
+公開APIは\texttt{LilyPondTransposer}の\texttt{transpose}メソッドである。
+
+\begin{lstlisting}[language=Swift,caption={Swift Packageからの呼出し例}]
+import LilyPondTransposeCore
+
+let result = try LilyPondTransposer().transpose(
+    lilyPondSource,
+    from: "c",
+    to: "a"
+)
+\end{lstlisting}
+
+入力と出力はいずれも\texttt{String}であり、失敗時は\texttt{TransposeError}を送出する。
+したがって、コマンドラインの標準入出力に依存せず、文書アプリや別のSwiftUI画面からも
+同じ変換器を直接利用できる。
+
+\chapter{Swift版の全体構成}
+
+\begin{command}
+SwiftUIアプリ (macOS / iPad / iPhone)
+        |
+        v
+LilyPondTransposer: 公開API、入力の正規化
+        |
+        v
+Tokenizer: LilyPond文字列をToken列へ分解
+        |
+        v
+TransposeEngine: 音高、調号、相対音高を移調
+        |
+        v
+LilyPondWriter: Token列を文字列へ復元
+\end{command}
+
+\begin{longtable}{@{}p{45mm}p{96mm}@{}}
+\toprule
+ファイル & 主な責務\\
+\midrule
+\texttt{LilyPondTransposer.swift} & 公開API、エラー型、入力音高の正規化\\
+\texttt{Token.swift} & 列挙型による中間表現\\
+\texttt{Tokenizer.swift} & LilyPond文字列の字句解析と入れ子構造の読取り\\
+\texttt{MusicTheory.swift} & 音名、半音、異名同音、移調後の綴りの計算\\
+\texttt{TransposeEngine.swift} & Token木の走査、相対音高の解決、移調\\
+\texttt{LilyPondWriter.swift} & Token列からLilyPond文字列への復元\\
+\texttt{*ContentView.swift} & 端末に適した入力、ファイル選択、結果表示\\
+\texttt{LilyPondTransposer}\newline\texttt{Tests.swift} & 共通ライブラリの回帰テスト\\
+\bottomrule
+\end{longtable}
+
+\lstinputlisting[language=Swift,caption={Swift Package定義 Package.swift}]{../swift/Package.swift}
+
+\chapter{公開APIとエラー処理}
+
+\texttt{LilyPondTransposer.transpose()}は、前後の基準音を正規化して半音移動量と音名文字の
+移動量を計算し、Tokenizer、TransposeEngine、Writerを順番に接続する。UIで入力した
+アポストロフィーがスマート引用符へ置換される場合があるため、\texttt{normalizePitch()}で
+ASCIIの\texttt{'}へ戻してから検証する点は、Apple端末向け実装に固有の配慮である。
+
+\texttt{TransposeError}は、不正な音高、閉じ括弧などを欠くソース、未対応の臨時記号を区別し、
+\texttt{LocalizedError}として日本語の説明をUIへ渡す。
+
+\lstinputlisting[language=Swift,caption={公開API LilyPondTransposer.swift}]{../swift/LilyPondTranspose/Core/LilyPondTransposer.swift}
+
+\chapter{Tokenと字句解析}
+
+\section{値型による中間表現}
+
+Swift版の\texttt{Token}は\texttt{indirect enum}で定義する。関連値を使って、単音なら音名、
+オクターブ、suffixを、和音や相対音高ブロックなら子Tokenを一つの型で表現する。
+\texttt{Equatable}への準拠により、将来Token単位のテストも簡潔に記述できる。
+
+\lstinputlisting[language=Swift,caption={Token定義 Token.swift}]{../swift/LilyPondTranspose/Core/Token.swift}
+
+\section{Tokenizerの走査}
+
+\texttt{Tokenizer}は文字列を\texttt{Character}配列として保持し、\texttt{position}を進める。
+現在位置から\texttt{\textbackslash relative}、並列ブロック、コメント、調指定、コマンド、
+和音、単音の順に判定する。音名は長い候補から照合するため、短い接頭辞による誤認を避ける。
+
+波括弧の本体は深さを数えて切り出し、別のTokenizerで再帰的に解析する。閉じ記号がない場合は
+その場で\texttt{malformedSource}を送出し、不完全なToken列を後段へ渡さない。
+
+\lstinputlisting[language=Swift,caption={字句解析 Tokenizer.swift}]{../swift/LilyPondTranspose/Core/Tokenizer.swift}
+
+\chapter{音楽理論と相対音高}
+
+\section{MusicTheory}
+
+\texttt{MusicTheory}は音名からピッチクラスへの表、自然音の半音位置、シャープ系・フラット系の
+代表綴りを持つ。\texttt{transposeNote()}は半音差だけでなく音名文字の移動量も用いるため、
+音程として自然な綴りを選べる。一方、絶対表記の簡易変換や調号には
+\texttt{transposeSimple()}を使う。
+
+Swiftの剰余演算は負数を返し得るため、\texttt{modulo()}で常に0以上へ正規化している。
+これは下方向への移調で配列添字を安全に求めるために重要である。
+
+\lstinputlisting[language=Swift,caption={音楽理論計算 MusicTheory.swift}]{../swift/LilyPondTranspose/Core/MusicTheory.swift}
+
+\section{RelativeResolverとTransposeEngine}
+
+\texttt{RelativeResolver}は移調前と移調後の直前音を\texttt{PitchPosition}として別々に保持する。
+元の相対表記を絶対MIDI値へ解決し、移調後のMIDI値に対応する音名と、直前音から必要になる
+アポストロフィーまたはカンマを再計算する。
+
+和音では各構成音を順に処理するが、次の単音へ引き継ぐ基準は第1音である。並列ブロックでは
+Resolverを声部ごとにコピーし、一方の声部の終端音が他方へ影響しないようにする。
+\texttt{TransposeEngine.walk()}はこの状態を\texttt{inout}で受け渡しながらToken木を再帰走査する。
+
+\lstinputlisting[language=Swift,caption={移調エンジン TransposeEngine.swift}]{../swift/LilyPondTranspose/Core/TransposeEngine.swift}
+
+\chapter{LilyPond文字列への復元}
+
+\texttt{LilyPondWriter}は列挙型の各caseを\texttt{switch}し、Tokenを文字列へ戻す。
+コメント、コマンド、記号は保存した文字列をそのまま返し、変更対象の音符と調号だけを
+組み立て直す。和音、相対音高、並列声部は子Tokenに対して\texttt{write()}を再帰適用する。
+
+\lstinputlisting[language=Swift,caption={LilyPond出力 LilyPondWriter.swift}]{../swift/LilyPondTranspose/Core/LilyPondWriter.swift}
+
+\chapter{Apple端末用ユーザーインターフェース}
+
+三つのUIはいずれも\texttt{@State}に入力、結果、移調元、移調先、エラーを保持し、
+\texttt{convert()}から共通の\texttt{LilyPondTransposer}を呼び出す。macOS版は
+\texttt{NSOpenPanel}、iPad・iPhone版は\texttt{fileImporter}を利用する。iOS系では
+セキュリティスコープ付きURLへのアクセスを開始し、\texttt{defer}で確実に終了する。
+
+\lstinputlisting[language=Swift,caption={macOS画面 MacContentView.swift}]{../swift/LilyPondTranspose/macOS/MacContentView.swift}
+\lstinputlisting[language=Swift,caption={iPad画面 PadContentView.swift}]{../swift/LilyPondTranspose/iPad/PadContentView.swift}
+\lstinputlisting[language=Swift,caption={iPhone画面 PhoneContentView.swift}]{../swift/LilyPondTranspose/iPhone/PhoneContentView.swift}
+
+\chapter{テストと保守}
+
+Swift Testingによるテストは、単音、調号、和音、相対音高をまとめて移調する基本例に加え、
+コメントとコマンドの保持、不正音名、移調方向を変えるオクターブ記号、スマート引用符の正規化、
+上下記号の混在拒否を確認する。CoreをUIから分離したことで、シミュレータや画面操作なしに
+変換ロジックを検証できる。
+
+\lstinputlisting[language=Swift,caption={Swift版のテスト LilyPondTransposerTests.swift}]{../swift/LilyPondTransposeTests/LilyPondTransposerTests.swift}
+
+Python版とSwift版の挙動を変更するときは、同じ入力に対する出力を相互比較し、最後にLilyPondで
+コンパイルする。特に相対音高、和音直後の基準音、並列声部、異名同音は、文字列としてもっとも
+らしくても意図した譜面と異なる可能性があるため、PDFの目視確認までを検証に含める。
 
 \end{document}
